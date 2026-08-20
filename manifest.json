@@ -1,0 +1,12 @@
+{
+  "name": "스터디 램프",
+  "short_name": "스터디 램프",
+  "description": "타이머, 낮잠 알람, 할 일, 집중 기록을 제공하는 공부 도구",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#12172A",
+  "theme_color": "#12172A",
+  "lang": "ko",
+  "orientation": "portrait"
+}

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12172A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="스터디 램프">
+<link rel="manifest" href="manifest.json">
+
+<title>스터디 램프 · 집중 도구</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12172A;
+    --bg-deep:#0C0F1D;
+    --paper:#F7EFE0;
+    --paper-ink:#2B2620;
+    --paper-ink-soft:#5B5346;
+    --amber:#E8A33D;
+    --amber-deep:#C97F1E;
+    --sticky:#F3DE87;
+    --sage:#7FA189;
+    --coral:#D9634B;
+    --ink-muted:#9AA3C0;
+    --ink-bright:#F1EFEA;
+    --ring:#3A4166;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink-bright);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+    padding-bottom:48px;
+  }
+  /* ---------- 램프 글로우 (시그니처 요소) ---------- */
+  #lampGlow{
+    position:fixed;
+    top:-260px; left:50%;
+    transform:translateX(-50%);
+    width:720px; height:520px;
+    border-radius:50%;
+    background:radial-gradient(closest-side, var(--amber) 0%, rgba(232,163,61,0.35) 35%, rgba(232,163,61,0) 70%);
+    filter:blur(6px);
+    opacity:0.55;
+    pointer-events:none;
+    z-index:0;
+    transition:opacity 1.1s ease, background 1.1s ease;
+  }
+  body.lamp-idle #lampGlow{opacity:0.42; animation:breatheIdle 7s ease-in-out infinite;}
+  body.lamp-focus #lampGlow{opacity:0.68; animation:breatheIdle 5.5s ease-in-out infinite;}
+  body.lamp-break #lampGlow{opacity:0.4; background:radial-gradient(closest-side, var(--sage) 0%, rgba(127,161,137,0.32) 35%, rgba(127,161,137,0) 70%);}
+  body.lamp-nap #lampGlow{opacity:0.16; animation:breatheSleep 4.5s ease-in-out infinite;}
+  body.lamp-alarm #lampGlow{opacity:0.9; background:radial-gradient(closest-side, var(--coral) 0%, rgba(217,99,75,0.55) 40%, rgba(217,99,75,0) 72%); animation:pulseAlarm 0.9s ease-in-out infinite;}
+  @keyframes breatheIdle{0%,100%{opacity:.42}50%{opacity:.6}}
+  @keyframes breatheSleep{0%,100%{opacity:.1}50%{opacity:.22}}
+  @keyframes pulseAlarm{0%,100%{opacity:.55}50%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){
+    #lampGlow{animation:none !important;}
+  }
+
+  .wrap{position:relative; z-index:1; max-width:520px; margin:0 auto; padding:28px 20px 0;}
+
+  header{text-align:center; margin-bottom:22px;}
+  .eyebrow{
+    display:block; font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--amber); font-weight:600; margin-bottom:8px;
+  }
+  h1{
+    font-family:'Fraunces',serif; font-style:italic; font-weight:600;
+    font-size:34px; margin:0; color:var(--ink-bright);
+    text-shadow:0 0 28px rgba(232,163,61,.25);
+  }
+  .sub{color:var(--ink-muted); font-size:13.5px; margin-top:8px; line-height:1.5;}
+
+  /* ---------- 탭 ---------- */
+  nav.tabs{
+    display:flex; gap:8px; overflow-x:auto; padding:4px 2px 18px;
+    -webkit-overflow-scrolling:touch;
+  }
+  nav.tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{
+    flex:0 0 auto;
+    background:transparent; color:var(--ink-muted);
+    border:1px solid var(--ring); border-radius:999px;
+    padding:9px 16px; font-size:13.5px; font-weight:600;
+    font-family:'Inter',sans-serif; cursor:pointer;
+    transition:all .2s ease;
+  }
+  .tab-btn.active{background:var(--amber); border-color:var(--amber); color:#241505;}
+  .tab-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--amber); outline-offset:2px;
+  }
+
+  .tab-panel{display:none;}
+  .tab-panel.visible{display:block; animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:translateY(0)}}
+  @media (prefers-reduced-motion: reduce){ .tab-panel.visible{animation:none;} }
+
+  .card{
+    background:var(--paper); color:var(--paper-ink);
+    border-radius:22px; padding:26px 22px; box-shadow:0 18px 40px rgba(0,0,0,.35);
+  }
+
+  /* ---------- 타이머 카드 ---------- */
+  .phase-label{
+    text-align:center; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
+    font-weight:700; color:var(--paper-ink-soft); margin-bottom:6px;
+  }
+  .phase-label.is-focus{color:var(--amber-deep);}
+  .phase-label.is-break{color:var(--sage);}
+  .timer-digits{
+    font-family:'IBM Plex Mono',monospace; font-weight:600;
+    font-size:64px; text-align:center; letter-spacing:1px; margin:4px 0 18px;
+  }
+  .progress-track{
+    height:8px; border-radius:999px; background:rgba(43,38,32,.12); overflow:hidden; margin-bottom:20px;
+  }
+  .progress-fill{
+    height:100%; width:0%; background:var(--amber-deep); border-radius:999px;
+    transition:width .3s linear, background-color .4s ease;
+  }
+  .progress-fill.is-break{background:var(--sage);}
+
+  .btn-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:6px;}
+  .btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+    border:none; border-radius:12px; padding:11px 18px; cursor:pointer;
+    transition:transform .15s ease, filter .15s ease;
+  }
+  .btn:active{transform:scale(.96);}
+  .btn-primary{background:var(--amber-deep); color:#FFF6E8;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:transparent; color:var(--paper-ink); border:1px solid rgba(43,38,32,.25);}
+  .btn-danger{background:var(--coral); color:#fff6f3;}
+  .btn-block{width:100%;}
+
+  .settings-row{display:flex; gap:12px; margin-top:18px;}
+  .field{flex:1;}
+  .field label{display:block; font-size:12px; color:var(--paper-ink-soft); margin-bottom:6px; font-weight:600;}
+  .field input[type=number]{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(43,38,32,.2);
+    font-family:'IBM Plex Mono',monospace; font-size:15px; background:#fff; color:var(--paper-ink);
+  }
+  .stat-line{
+    margin-top:18px; text-align:center; font-size:13px; color:var(--paper-ink-soft);
+  }
+  .stat-line b{color:var(--paper-ink); font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- 낮잠 알람: 시계 얼굴 ---------- */
+  .clock-face{
+    width:220px; height:220px; margin:6px auto 22px; border-radius:50%;
+    background:#fff; border:6px solid var(--paper-ink);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    position:relative;
+  }
+  .clock-face::before, .clock-face::after{
+    content:''; position:absolute; top:-14px; width:26px; height:26px; border-radius:50%;
+    background:var(--paper-ink);
+  }
+  .clock-face::before{left:22px; transform:rotate(-28deg);}
+  .clock-face::after{right:22px; transform:rotate(28deg);}
+  .clock-time{font-family:'IBM Plex Mono',monospace; font-size:40px; font-weight:600;}
+  .clock-caption{font-size:12px; color:var(--paper-ink-soft); margin-top:4px;}
+  .clock-face.is-alarm{border-color:var(--coral); animation:shake .5s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){ .clock-face.is-alarm{animation:none;} }
+  @keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+
+  .quick-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:14px;}
+  .chip{
+    border:1px solid rgba(43,38,32,.25); background:transparent; color:var(--paper-ink);
+    border-radius:999px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .chip.active{background:var(--amber-deep); border-color:var(--amber-deep); color:#FFF6E8;}
+
+  .custom-min{display:flex; align-items:center; gap:8px; justify-content:center; margin-bottom:18px;}
+  .custom-min input{width:70px; text-align:center; padding:9px; border-radius:10px; border:1px solid rgba(43,38,32,.2); font-family:'IBM Plex Mono',monospace; font-size:14px;}
+
+  .info-box{
+    margin-top:20px; border:1px dashed rgba(43,38,32,.35); border-radius:14px;
+    padding:14px 14px; font-size:12.5px; line-height:1.6; color:var(--paper-ink-soft);
+  }
+  .info-box strong{color:var(--paper-ink);}
+  #audioOutputWrap{margin-top:12px;}
+  #audioOutputWrap select{
+    width:100%; padding:9px 10px; border-radius:10px; border:1px solid rgba(43,38,32,.2);
+    font-size:13px; background:#fff; color:var(--paper-ink);
+  }
+  #audioOutputWrap label{display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--paper-ink-soft);}
+
+  /* ---------- 할 일: 스티키 노트 ---------- */
+  .sticky{
+    background:var(--sticky); transform:rotate(-1.1deg); position:relative;
+    box-shadow:0 14px 30px rgba(0,0,0,.32);
+  }
+  .sticky::before{
+    content:''; position:absolute; top:-10px; left:50%; transform:translateX(-50%) rotate(-3deg);
+    width:70px; height:22px; background:rgba(255,255,255,.55);
+    border:1px solid rgba(255,255,255,.7);
+  }
+  .task-input-row{display:flex; gap:8px; margin-bottom:16px;}
+  .task-input-row input{
+    flex:1; padding:11px 12px; border-radius:10px; border:1px solid rgba(43,38,32,.25);
+    font-size:14px; background:#fffdf6;
+  }
+  .task-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  .task-item{
+    display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.4);
+    border-radius:10px; padding:10px 12px;
+  }
+  .task-item input[type=checkbox]{width:18px; height:18px; accent-color:var(--amber-deep); flex:0 0 auto;}
+  .task-item span{flex:1; font-size:14px; word-break:break-word;}
+  .task-item.done span{text-decoration:line-through; opacity:.55;}
+  .task-item button{
+    background:transparent; border:none; color:var(--paper-ink-soft); font-size:16px; cursor:pointer; padding:2px 6px;
+  }
+  .empty-note{font-size:13px; color:var(--paper-ink-soft); text-align:center; padding:14px 0;}
+
+  /* ---------- 기록: 노트 페이지 ---------- */
+  .notebook{
+    background:
+      repeating-linear-gradient(var(--paper) 0px, var(--paper) 27px, rgba(43,38,32,.09) 28px),
+      var(--paper);
+    border-left:3px solid var(--coral);
+    padding-left:26px;
+  }
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px;}
+  .stat-box{text-align:center; padding:10px 4px;}
+  .stat-box .num{font-family:'IBM Plex Mono',monospace; font-size:30px; font-weight:600; color:var(--amber-deep);}
+  .stat-box .lbl{font-size:12px; color:var(--paper-ink-soft); margin-top:2px;}
+  .reset-row{margin-top:20px; text-align:center;}
+
+  .loading-note{font-size:12.5px; color:var(--paper-ink-soft); text-align:center; padding:10px 0;}
+  footer{text-align:center; color:var(--ink-muted); font-size:11.5px; margin-top:30px; padding:0 10px;}
+</style>
+</head>
+<body class="lamp-idle">
+<div id="lampGlow"></div>
+<audio id="alarmAudioEl" playsinline></audio>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">오늘의 공부 책상</span>
+    <h1>스터디 램프</h1>
+    <p class="sub">타이머로 집중하고, 짧게 낮잠 자고, 할 일을 체크하세요.</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="timer" type="button" role="tab" aria-selected="true">타이머</button>
+    <button class="tab-btn" data-tab="nap" type="button" role="tab" aria-selected="false">낮잠 알람</button>
+    <button class="tab-btn" data-tab="tasks" type="button" role="tab" aria-selected="false">할 일</button>
+    <button class="tab-btn" data-tab="stats" type="button" role="tab" aria-selected="false">기록</button>
+  </nav>
+
+  <!-- ===================== 타이머 (뽀모도로) ===================== -->
+  <section class="tab-panel visible" id="panel-timer">
+    <div class="card">
+      <div class="phase-label is-focus" id="phaseLabel">대기 중</div>
+      <div class="timer-digits" id="timerDigits">25:00</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="pomoStartBtn" type="button">시작</button>
+        <button class="btn btn-ghost" id="pomoResetBtn" type="button">초기화</button>
+        <button class="btn btn-ghost" id="pomoSkipBtn" type="button">다음 단계로</button>
+      </div>
+
+      <div class="settings-row">
+        <div class="field">
+          <label for="focusMinInput">집중 시간(분)</label>
+          <input type="number" id="focusMinInput" min="1" max="180" value="25">
+        </div>
+        <div class="field">
+          <label for="breakMinInput">휴식 시간(분)</label>
+          <input type="number" id="breakMinInput" min="1" max="60" value="5">
+        </div>
+      </div>
+
+      <div class="stat-line">오늘 완료한 뽀모도로 <b id="pomoCountToday">0</b>회</div>
+    </div>
+  </section>
+
+  <!-- ===================== 낮잠 알람 ===================== -->
+  <section class="tab-panel" id="panel-nap">
+    <div class="card">
+      <div class="clock-face" id="napClockFace">
+        <div class="clock-time" id="napTime">15:00</div>
+        <div class="clock-caption" id="napCaption">낮잠 시간을 골라주세요</div>
+      </div>
+
+      <div id="napSetupArea">
+        <div class="quick-row" id="napQuickRow">
+          <button class="chip" data-min="10" type="button">10분</button>
+          <button class="chip active" data-min="15" type="button">15분</button>
+          <button class="chip" data-min="20" type="button">20분</button>
+          <button class="chip" data-min="30" type="button">30분</button>
+        </div>
+        <div class="custom-min">
+          <span style="font-size:13px;color:var(--paper-ink-soft);">직접 입력</span>
+          <input type="number" id="napCustomInput" min="1" max="180" placeholder="분">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-block" id="napStartBtn" type="button">낮잠 시작</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="napTestSoundBtn" type="button">소리 테스트</button>
+        </div>
+      </div>
+
+      <div id="napRunningArea" style="display:none;">
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-block" id="napCancelBtn" type="button">낮잠 취소</button>
+        </div>
+      </div>
+
+      <div id="napAlarmArea" style="display:none;">
+        <div class="btn-row">
+          <button class="btn btn-danger btn-block" id="napStopAlarmBtn" type="button">알람 끄기</button>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>블루투스 기기로만 소리내기, 어디까지 될까요?</strong><br>
+        웹페이지는 어떤 스피커로 소리를 낼지 강제로 정할 수 없어요. 대신 낮잠을 시작하기 전에
+        휴대폰(또는 컴퓨터) 설정에서 블루투스 기기를 <b>기본 오디오 출력</b>으로 연결해두면,
+        알람도 자동으로 그 기기에서만 울려요. 아래에 기기 선택 목록이 뜨면 지원되는 브라우저(주로
+        데스크톱 Chrome·Edge)라는 뜻이니 직접 골라도 됩니다. 그리고 낮잠 중 화면이 꺼지면 알람이
+        안 울릴 수 있으니, 화면은 켜둔 채로 사용해 주세요.
+        <div id="audioOutputWrap" hidden>
+          <label for="audioOutputSelect">알람 소리가 나올 기기</label>
+          <select id="audioOutputSelect"></select>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 할 일 목록 ===================== -->
+  <section class="tab-panel" id="panel-tasks">
+    <div class="card sticky">
+      <div class="task-input-row">
+        <input type="text" id="taskInput" placeholder="오늘 할 일을 적어보세요" maxlength="120">
+        <button class="btn btn-primary" id="taskAddBtn" type="button">추가</button>
+      </div>
+      <div id="taskLoading" class="loading-note">불러오는 중…</div>
+      <ul class="task-list" id="taskList"></ul>
+      <div class="empty-note" id="taskEmptyNote" style="display:none;">아직 할 일이 없어요. 위에 적어보세요.</div>
+    </div>
+  </section>
+
+  <!-- ===================== 집중 기록 ===================== -->
+  <section class="tab-panel" id="panel-stats">
+    <div class="card notebook">
+      <div id="statsLoading" class="loading-note">불러오는 중…</div>
+      <div id="statsContent" style="display:none;">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="num" id="statFocusMin">0</div><div class="lbl">오늘 집중 분(分)</div></div>
+          <div class="stat-box"><div class="num" id="statPomoCount">0</div><div class="lbl">완료한 뽀모도로</div></div>
+          <div class="stat-box"><div class="num" id="statNapCount">0</div><div class="lbl">오늘 낮잠 횟수</div></div>
+          <div class="stat-box"><div class="num" id="statTaskDone">0</div><div class="lbl">완료한 할 일</div></div>
+        </div>
+        <div class="reset-row">
+          <button class="btn btn-ghost" id="statResetBtn" type="button">오늘 기록 초기화</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>이 페이지의 할 일·기록은 이 앱 안에서만 저장돼요. 소리는 오디오 컨텍스트로 직접 생성해요.</footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============ 공통: 오디오 ============ */
+  var audioCtx = null;
+  var alarmDestNode = null;
+
+  function getCtx(){
+    if(!audioCtx){
+      var Ctor = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctor();
+    }
+    if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+    return audioCtx;
+  }
+
+  function getAlarmDestination(){
+    var ctx = getCtx();
+    if(!alarmDestNode){
+      alarmDestNode = ctx.createMediaStreamDestination();
+      var el = document.getElementById('alarmAudioEl');
+      el.srcObject = alarmDestNode.stream;
+    }
+    return alarmDestNode;
+  }
+
+  function beep(freq, duration, when, gainVal, type, routeToAlarm){
+    var ctx = getCtx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    var dest = routeToAlarm ? getAlarmDestination() : ctx.destination;
+    osc.connect(gain);
+    gain.connect(dest);
+    var t0 = ctx.currentTime + (when || 0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(gainVal || 0.16, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.03);
+  }
+
+  function playChime(){
+    beep(880, 0.16, 0, 0.14, 'sine', false);
+    beep(1175, 0.2, 0.15, 0.14, 'sine', false);
+  }
+
+  var alarmTimerId = null;
+  function playAlarmBurst(){
+    beep(988, 0.18, 0, 0.2, 'square', true);
+    beep(1319, 0.18, 0.2, 0.2, 'square', true);
+  }
+  async function startAlarmLoop(){
+    var el = document.getElementById('alarmAudioEl');
+    var sel = document.getElementById('audioOutputSelect');
+    getAlarmDestination();
+    try{
+      await el.play();
+      if(sel && sel.value && el.setSinkId){
+        try{ await el.setSinkId(sel.value); }catch(e){ /* 기기 지정 실패 시 기본 출력 사용 */ }
+      }
+    }catch(e){ /* 재생 실패 시 무음일 수 있음 */ }
+    playAlarmBurst();
+    alarmTimerId = setInterval(playAlarmBurst, 900);
+    if(navigator.vibrate){
+      try{ navigator.vibrate([400,200,400,200,400]); }catch(e){}
+    }
+  }
+  function stopAlarmLoop(){
+    if(alarmTimerId){ clearInterval(alarmTimerId); alarmTimerId = null; }
+    var el = document.getElementById('alarmAudioEl');
+    try{ el.pause(); }catch(e){}
+    if(navigator.vibrate){ try{ navigator.vibrate(0); }catch(e){} }
+  }
+
+  function unlockAudioForGesture(){
+    getCtx();
+    var el = document.getElementById('alarmAudioEl');
+    getAlarmDestination();
+    el.play().then(function(){ el.pause(); }).catch(function(){});
+  }
+
+  /* ============ 오디오 출력 기기 선택 (지원 브라우저만) ============ */
+  async function setupAudioOutputSelector(){
+    var wrap = document.getElementById('audioOutputWrap');
+    var sel = document.getElementById('audioOutputSelect');
+    if(!('setSinkId' in HTMLMediaElement.prototype) || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices){
+      wrap.hidden = true;
+      return;
+    }
+    try{
+      var stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(function(t){ t.stop(); });
+    }catch(e){ /* 권한 거부돼도 목록 자체는 시도 */ }
+    try{
+      var devices = await navigator.mediaDevices.enumerateDevices();
+      var outputs = devices.filter(function(d){ return d.kind === 'audiooutput'; });
+      if(outputs.length === 0){ wrap.hidden = true; return; }
+      sel.innerHTML = '';
+      outputs.forEach(function(d){
+        var opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || '오디오 출력 기기';
+        sel.appendChild(opt);
+      });
+      wrap.hidden = false;
+    }catch(e){ wrap.hidden = true; }
+  }
+  setupAudioOutputSelector();
+
+  /* ============ 램프 상태 ============ */
+  function setLampState(state){
+    document.body.classList.remove('lamp-idle','lamp-focus','lamp-break','lamp-nap','lamp-alarm');
+    document.body.classList.add('lamp-' + state);
+  }
+
+  /* ============ 탭 전환 ============ */
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabBtns.forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+      var tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-panel').forEach(function(p){
+        p.classList.toggle('visible', p.id === 'panel-' + tab);
+      });
+    });
+  });
+
+  /* ============ 저장소 어댑터 ============
+     Claude 안(artifact)에서는 window.storage를 쓰고,
+     홈 화면 앱처럼 Claude 밖에서 독립 실행할 때는 window.storage가 없으므로
+     이 기기의 localStorage로 자동 전환해서 저장해요. */
+  var LOCAL_PREFIX = 'studylamp:';
+  var hasCloudStorage = (typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function');
+
+  var storageAdapter = {
+    get: async function(key){
+      if(hasCloudStorage){
+        try{ return await window.storage.get(key, false); }
+        catch(e){ /* 클라우드 저장소 실패 시 로컬로 대체 */ }
+      }
+      try{
+        var raw = window.localStorage ? localStorage.getItem(LOCAL_PREFIX + key) : null;
+        return raw === null ? null : {key: key, value: raw, shared:false};
+      }catch(e){ return null; }
+    },
+    set: async function(key, value){
+      if(hasCloudStorage){
+        try{ return await window.storage.set(key, value, false); }
+        catch(e){ /* 클라우드 저장소 실패 시 로컬로 대체 */ }
+      }
+      try{
+        if(window.localStorage){ localStorage.setItem(LOCAL_PREFIX + key, value); }
+        return {key:key, value:value, shared:false};
+      }catch(e){ return null; }
+    }
+  };
+
+  /* ============ 날짜 helper ============ */
+  function todayStr(){
+    var d = new Date();
+    var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return y + '-' + m + '-' + day;
+  }
+  function fmt(sec){
+    sec = Math.max(0, Math.round(sec));
+    var m = Math.floor(sec/60), s = sec%60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  /* ============ 통계 저장/불러오기 ============ */
+  var stats = {date: todayStr(), focusMinutes:0, pomodoroCount:0, napCount:0};
+
+  async function loadStats(){
+    try{
+      var r = await storageAdapter.get('study-today-stats');
+      var parsed = r ? JSON.parse(r.value) : null;
+      if(parsed && parsed.date === todayStr()){
+        stats = parsed;
+      } else {
+        stats = {date: todayStr(), focusMinutes:0, pomodoroCount:0, napCount:0};
+      }
+    }catch(e){
+      stats = {date: todayStr(), focusMinutes:0, pomodoroCount:0, napCount:0};
+    }
+    renderStats();
+    document.getElementById('statsLoading').style.display = 'none';
+    document.getElementById('statsContent').style.display = 'block';
+  }
+  async function saveStats(){
+    try{ await storageAdapter.set('study-today-stats', JSON.stringify(stats)); }
+    catch(e){ console.warn('통계 저장 실패', e); }
+  }
+  function renderStats(){
+    document.getElementById('statFocusMin').textContent = stats.focusMinutes;
+    document.getElementById('statPomoCount').textContent = stats.pomodoroCount;
+    document.getElementById('statNapCount').textContent = stats.napCount;
+    document.getElementById('pomoCountToday').textContent = stats.pomodoroCount;
+    var doneCount = tasks.filter(function(t){ return t.done; }).length;
+    document.getElementById('statTaskDone').textContent = doneCount;
+  }
+
+  var resetArmed = false;
+  document.getElementById('statResetBtn').addEventListener('click', function(){
+    var btn = document.getElementById('statResetBtn');
+    if(!resetArmed){
+      resetArmed = true;
+      btn.textContent = '정말 초기화할까요? 한 번 더 누르세요';
+      setTimeout(function(){ resetArmed = false; btn.textContent = '오늘 기록 초기화'; }, 3500);
+      return;
+    }
+    resetArmed = false;
+    btn.textContent = '오늘 기록 초기화';
+    stats = {date: todayStr(), focusMinutes:0, pomodoroCount:0, napCount:0};
+    renderStats(); saveStats();
+  });
+
+  /* ============ 할 일 목록 ============ */
+  var tasks = [];
+  async function loadTasks(){
+    try{
+      var r = await storageAdapter.get('study-tasks');
+      tasks = r ? JSON.parse(r.value) : [];
+    }catch(e){ tasks = []; }
+    renderTasks();
+    document.getElementById('taskLoading').style.display = 'none';
+  }
+  async function saveTasks(){
+    try{ await storageAdapter.set('study-tasks', JSON.stringify(tasks)); }
+    catch(e){ console.warn('할 일 저장 실패', e); }
+  }
+  function renderTasks(){
+    var list = document.getElementById('taskList');
+    var empty = document.getElementById('taskEmptyNote');
+    list.innerHTML = '';
+    if(tasks.length === 0){ empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tasks.forEach(function(t){
+      var li = document.createElement('li');
+      li.className = 'task-item' + (t.done ? ' done' : '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = !!t.done;
+      cb.addEventListener('change', function(){
+        t.done = cb.checked; renderTasks(); saveTasks(); renderStats();
+      });
+      var span = document.createElement('span');
+      span.textContent = t.text;
+      var del = document.createElement('button');
+      del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label','삭제');
+      del.addEventListener('click', function(){
+        tasks = tasks.filter(function(x){ return x.id !== t.id; });
+        renderTasks(); saveTasks(); renderStats();
+      });
+      li.appendChild(cb); li.appendChild(span); li.appendChild(del);
+      list.appendChild(li);
+    });
+  }
+  function addTask(){
+    var input = document.getElementById('taskInput');
+    var text = input.value.trim();
+    if(!text) return;
+    tasks.push({id: Date.now() + '-' + Math.random().toString(36).slice(2,7), text: text, done:false});
+    input.value = '';
+    renderTasks(); saveTasks(); renderStats();
+  }
+  document.getElementById('taskAddBtn').addEventListener('click', addTask);
+  document.getElementById('taskInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') addTask();
+  });
+
+  /* ============ 뽀모도로 타이머 ============ */
+  var pomo = {
+    phase: 'idle',      // idle | focus | break
+    running: false,
+    remaining: 25*60,
+    totalForPhase: 25*60,
+    tickId: null
+  };
+  var focusInput = document.getElementById('focusMinInput');
+  var breakInput = document.getElementById('breakMinInput');
+  var digitsEl = document.getElementById('timerDigits');
+  var phaseLabelEl = document.getElementById('phaseLabel');
+  var fillEl = document.getElementById('progressFill');
+  var startBtn = document.getElementById('pomoStartBtn');
+
+  function renderPomo(){
+    digitsEl.textContent = fmt(pomo.remaining);
+    var frac = pomo.totalForPhase > 0 ? (1 - pomo.remaining/pomo.totalForPhase) : 0;
+    fillEl.style.width = Math.min(100, Math.max(0, frac*100)) + '%';
+    fillEl.classList.toggle('is-break', pomo.phase === 'break');
+    phaseLabelEl.classList.remove('is-focus','is-break');
+    if(pomo.phase === 'focus'){ phaseLabelEl.textContent = '집중 중'; phaseLabelEl.classList.add('is-focus'); }
+    else if(pomo.phase === 'break'){ phaseLabelEl.textContent = '쉬는 시간'; phaseLabelEl.classList.add('is-break'); }
+    else { phaseLabelEl.textContent = '대기 중'; }
+    startBtn.textContent = pomo.running ? '일시정지' : (pomo.phase === 'idle' ? '시작' : '계속');
+    updateLamp();
+  }
+
+  function updateLamp(){
+    if(nap.alarmActive){ setLampState('alarm'); return; }
+    if(nap.running){ setLampState('nap'); return; }
+    if(pomo.running && pomo.phase === 'focus'){ setLampState('focus'); return; }
+    if(pomo.running && pomo.phase === 'break'){ setLampState('break'); return; }
+    setLampState('idle');
+  }
+
+  function pomoTick(){
+    pomo.remaining -= 0.25;
+    if(pomo.remaining <= 0){
+      pomo.remaining = 0;
+      renderPomo();
+      onPhaseComplete();
+      return;
+    }
+    renderPomo();
+  }
+
+  function onPhaseComplete(){
+    playChime();
+    if(pomo.phase === 'focus'){
+      stats.focusMinutes += Number(focusInput.value) || 0;
+      stats.pomodoroCount += 1;
+      saveStats(); renderStats();
+      pomo.phase = 'break';
+      pomo.totalForPhase = Math.max(1, Number(breakInput.value) || 5) * 60;
+    } else {
+      pomo.phase = 'focus';
+      pomo.totalForPhase = Math.max(1, Number(focusInput.value) || 25) * 60;
+    }
+    pomo.remaining = pomo.totalForPhase;
+    renderPomo();
+    // 다음 단계 자동 시작
+    setTimeout(function(){ if(!pomo.running){ return; } }, 0);
+  }
+
+  function startPomoInterval(){
+    if(pomo.tickId) clearInterval(pomo.tickId);
+    pomo.tickId = setInterval(pomoTick, 250);
+  }
+  function stopPomoInterval(){
+    if(pomo.tickId){ clearInterval(pomo.tickId); pomo.tickId = null; }
+  }
+
+  startBtn.addEventListener('click', function(){
+    unlockAudioForGesture();
+    if(pomo.running){
+      pomo.running = false;
+      stopPomoInterval();
+      renderPomo();
+      return;
+    }
+    if(pomo.phase === 'idle'){
+      pomo.phase = 'focus';
+      pomo.totalForPhase = Math.max(1, Number(focusInput.value) || 25) * 60;
+      pomo.remaining = pomo.totalForPhase;
+    }
+    pomo.running = true;
+    startPomoInterval();
+    renderPomo();
+  });
+
+  document.getElementById('pomoResetBtn').addEventListener('click', function(){
+    pomo.running = false;
+    stopPomoInterval();
+    pomo.phase = 'idle';
+    pomo.totalForPhase = Math.max(1, Number(focusInput.value) || 25) * 60;
+    pomo.remaining = pomo.totalForPhase;
+    renderPomo();
+  });
+
+  document.getElementById('pomoSkipBtn').addEventListener('click', function(){
+    if(pomo.phase === 'idle'){ return; }
+    pomo.remaining = 0;
+    renderPomo();
+    onPhaseComplete();
+  });
+
+  [focusInput, breakInput].forEach(function(inp){
+    inp.addEventListener('change', function(){
+      if(pomo.phase === 'idle'){
+        pomo.totalForPhase = Math.max(1, Number(focusInput.value) || 25) * 60;
+        pomo.remaining = pomo.totalForPhase;
+        renderPomo();
+      }
+    });
+  });
+
+  /* ============ 낮잠 알람 ============ */
+  var nap = {
+    running:false,
+    alarmActive:false,
+    remaining:15*60,
+    tickId:null,
+    wakeLock:null
+  };
+  var napMinutes = 15;
+  var napTimeEl = document.getElementById('napTime');
+  var napCaptionEl = document.getElementById('napCaption');
+  var napFaceEl = document.getElementById('napClockFace');
+  var napQuickRow = document.getElementById('napQuickRow');
+  var napCustomInput = document.getElementById('napCustomInput');
+
+  napQuickRow.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      napQuickRow.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      napMinutes = Number(chip.dataset.min);
+      napCustomInput.value = '';
+      renderNapIdle();
+    });
+  });
+  napCustomInput.addEventListener('input', function(){
+    var v = Number(napCustomInput.value);
+    if(v > 0){
+      napQuickRow.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+      napMinutes = v;
+      renderNapIdle();
+    }
+  });
+
+  function renderNapIdle(){
+    napTimeEl.textContent = fmt(napMinutes*60);
+    napCaptionEl.textContent = '낮잠 시간을 골라주세요';
+  }
+  renderNapIdle();
+
+  function renderNapRunning(){
+    napTimeEl.textContent = fmt(nap.remaining);
+    napCaptionEl.textContent = '푹 쉬세요 · 화면을 켜두세요';
+  }
+
+  document.getElementById('napStartBtn').addEventListener('click', async function(){
+    unlockAudioForGesture();
+    nap.running = true;
+    nap.remaining = napMinutes*60;
+    document.getElementById('napSetupArea').style.display = 'none';
+    document.getElementById('napRunningArea').style.display = 'block';
+    document.getElementById('napAlarmArea').style.display = 'none';
+    napFaceEl.classList.remove('is-alarm');
+    renderNapRunning();
+    updateLamp();
+    if(nap.tickId) clearInterval(nap.tickId);
+    nap.tickId = setInterval(napTick, 250);
+    if('wakeLock' in navigator){
+      try{ nap.wakeLock = await navigator.wakeLock.request('screen'); }catch(e){ nap.wakeLock = null; }
+    }
+  });
+
+  function napTick(){
+    nap.remaining -= 0.25;
+    if(nap.remaining <= 0){
+      nap.remaining = 0;
+      renderNapRunning();
+      triggerNapAlarm();
+      return;
+    }
+    renderNapRunning();
+  }
+
+  function releaseWakeLock(){
+    if(nap.wakeLock){ try{ nap.wakeLock.release(); }catch(e){} nap.wakeLock = null; }
+  }
+
+  function triggerNapAlarm(){
+    if(nap.tickId){ clearInterval(nap.tickId); nap.tickId = null; }
+    nap.running = false;
+    nap.alarmActive = true;
+    napCaptionEl.textContent = '일어날 시간이에요!';
+    napFaceEl.classList.add('is-alarm');
+    document.getElementById('napRunningArea').style.display = 'none';
+    document.getElementById('napAlarmArea').style.display = 'block';
+    updateLamp();
+    startAlarmLoop();
+    stats.napCount += 1;
+    saveStats(); renderStats();
+  }
+
+  document.getElementById('napCancelBtn').addEventListener('click', function(){
+    nap.running = false;
+    if(nap.tickId){ clearInterval(nap.tickId); nap.tickId = null; }
+    releaseWakeLock();
+    document.getElementById('napSetupArea').style.display = 'block';
+    document.getElementById('napRunningArea').style.display = 'none';
+    renderNapIdle();
+    updateLamp();
+  });
+
+  document.getElementById('napStopAlarmBtn').addEventListener('click', function(){
+    stopAlarmLoop();
+    nap.alarmActive = false;
+    releaseWakeLock();
+    napFaceEl.classList.remove('is-alarm');
+    document.getElementById('napAlarmArea').style.display = 'none';
+    document.getElementById('napSetupArea').style.display = 'block';
+    renderNapIdle();
+    updateLamp();
+  });
+
+  document.getElementById('napTestSoundBtn').addEventListener('click', async function(){
+    unlockAudioForGesture();
+    var el = document.getElementById('alarmAudioEl');
+    var sel = document.getElementById('audioOutputSelect');
+    getAlarmDestination();
+    try{
+      await el.play();
+      if(sel && sel.value && el.setSinkId){
+        try{ await el.setSinkId(sel.value); }catch(e){}
+      }
+    }catch(e){}
+    playAlarmBurst();
+    setTimeout(function(){ try{ el.pause(); }catch(e){} }, 900);
+  });
+
+  /* ============ 초기 로딩 ============ */
+  loadStats();
+  loadTasks().then(renderStats);
+  renderPomo();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
